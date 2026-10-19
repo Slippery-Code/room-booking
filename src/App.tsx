@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { busyness } from './domain/busyness';
 import { dayGrid } from './domain/dayGrid';
+import { ownBookings } from './domain/ownBookings';
 import type { Booking, CreatedBooking, DomainError } from './domain/booking';
 import type { Result } from './domain/result';
 import { ROOMS, type RoomId } from './domain/rooms';
@@ -56,6 +57,7 @@ export function App({
   // The window moves at midnight; fall back to today if the pick left it.
   const selected = dates.includes(picked) ? picked : (dates[0] ?? picked);
   const grid = dayGrid(bookings, selected, now);
+  const mine = ownBookings(bookings, currentName, now);
   const busynessByDate = new Map(dates.map((d) => [d, busyness(bookings, d)]));
 
   const openForm = (next: FormTarget) => {
@@ -110,6 +112,21 @@ export function App({
           onCancel={closeForm}
         />
       )}
+      <section className="my-bookings" aria-label="My Bookings">
+        <h2>My Bookings</h2>
+        {mine.length === 0 ? (
+          <p className="my-bookings-empty">No upcoming bookings.</p>
+        ) : (
+          <ul className="my-bookings-list">
+            {mine.map((b) => (
+              <li key={b.id}>
+                {ROOMS.find((r) => r.id === b.roomId)?.name ?? b.roomId}, {formatDate(b.date)},{' '}
+                {slotLabel(b.startSlot)}-{slotLabel(b.startSlot + b.slotCount)}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
       <label className="day-picker">
         Day{' '}
         <select value={selected} onChange={(e) => selectDay(e.target.value)}>

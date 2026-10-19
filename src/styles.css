@@ -238,3 +238,18 @@ code {
 .booking-actions button {
   flex: 1;
 }
+
+.my-bookings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.my-bookings-list li {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  overflow-wrap: anywhere;
+}

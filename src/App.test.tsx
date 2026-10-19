@@ -232,3 +232,42 @@ describe('App', () => {
     expect(slotsOf('Small')[6]?.textContent).toContain('Unavailable');
   });
 });
+
+describe('My Bookings', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.useFakeTimers({ now: NOW });
+  });
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
+  const mine = () => within(screen.getByRole('region', { name: 'My Bookings' }));
+
+  it('shows the empty state when no Name is set', () => {
+    seed({ roomId: 'medium', date: DAY, startSlot: 12, slotCount: 2, name: 'Eleni K.' });
+    render(<Harness />);
+    expect(mine().getByText('No upcoming bookings.')).toBeDefined();
+  });
+
+  it('lists upcoming Bookings for a differently-cased, padded Name', () => {
+    localStorage.setItem('room-booking:name', '  eleni k. ');
+    seed(
+      { roomId: 'medium', date: DAY, startSlot: 12, slotCount: 2, name: 'Eleni K.' },
+      { roomId: 'small', date: DAY, startSlot: 2, slotCount: 1, name: 'Ann' },
+    );
+    render(<Harness />);
+    const items = mine().getAllByRole('listitem');
+    expect(items.map((i) => i.textContent)).toEqual(['Medium, Tue 20 Oct, 14:00-15:00']);
+  });
+
+  it('shows the empty state when all Bookings have ended or belong to others', () => {
+    localStorage.setItem('room-booking:name', 'Eleni K.');
+    seed(
+      { roomId: 'small', date: '2026-10-19', startSlot: 0, slotCount: 1, name: 'Eleni K.' },
+      { roomId: 'small', date: DAY, startSlot: 2, slotCount: 1, name: 'Ann' },
+    );
+    render(<Harness />);
+    expect(mine().getByText('No upcoming bookings.')).toBeDefined();
+  });
+});
