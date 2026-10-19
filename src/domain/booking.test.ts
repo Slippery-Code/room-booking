@@ -22,7 +22,7 @@ const code = (over: Partial<BookingRequest>, now: Date = NOW) => {
 
 describe('createBooking success', () => {
   it('returns a new list with the trimmed Name, casing kept', () => {
-    const existing: Booking[] = [req({ id: 'old', name: 'Someone' })];
+    const existing: Booking[] = [req({ id: 'old', name: 'Someone', roomId: 'large' })];
     const snapshot = JSON.stringify(existing);
     const r = createBooking(existing, req({ name: '  Eleni K. ' }), NOW);
     expect(r.ok).toBe(true);
@@ -152,5 +152,136 @@ describe('past', () => {
     const now = new Date('2026-10-25T06:00:00Z'); // 08:00 EET, slot 0
     expect(code({ date: '2026-10-25', startSlot: 0, slotCount: 1 }, now)).toBe('in_past');
     expect(code({ date: '2026-10-25', startSlot: 1, slotCount: 1 }, now)).toBe('ok');
+  });
+});
+
+describe('overlap', () => {
+  const D = '2026-07-17';
+  const at = (id: string, startSlot: number, slotCount: number, over: Partial<Booking> = {}): Booking =>
+    req({ id, date: D, roomId: 'medium', startSlot, slotCount, name: `Other ${id}`, ...over });
+  const run = (existing: Booking[], over: Partial<BookingRequest>) =>
+    createBooking(existing, req({ id: 'new', date: D, roomId: 'medium', name: 'Eleni K.', ...over }), NOW);
+
+  it('refuses a partial overlap and reports the conflict', () => {
+    const a = at('a', 4, 2); // 10:00-11:00
+    const r = run([a], { startSlot: 5, slotCount: 2 }); // 10:30-11:30
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toEqual({ code: 'overlap', conflicts: [a] });
+  });
+  it('refuses containment both ways and identical ranges', () => {
+    const a = at('a', 4, 4);
+    expect(run([a], { startSlot: 5, slotCount: 1 }).ok).toBe(false);
+    expect(run([at('a', 5, 1)], { startSlot: 4, slotCount: 4 }).ok).toBe(false);
+    expect(run([a], { startSlot: 4, slotCount: 4 }).ok).toBe(false);
+  });
+  it('allows back-to-back on either side', () => {
+    const a = at('a', 4, 2);
+    expect(run([a], { startSlot: 6, slotCount: 1 }).ok).toBe(true);
+    expect(run([a], { startSlot: 3, slotCount: 1 }).ok).toBe(true);
+  });
+  it('allows the same times in another Room or on another day', () => {
+    const a = at('a', 4, 2);
+    expect(run([a], { startSlot: 4, slotCount: 2, roomId: 'large' }).ok).toBe(true);
+    expect(run([a], { startSlot: 4, slotCount: 2, date: '2026-07-18' }).ok).toBe(true);
+  });
+  it('sorts conflicts by startSlot, ties by id', () => {
+    const late = at('z', 6, 1);
+    const early = at('m', 4, 2);
+    const tieB = at('b', 5, 1);
+    const tieA = at('a', 5, 1);
+    const r = run([late, tieB, early, tieA], { startSlot: 4, slotCount: 4 });
+    expect(r.ok).toBe(false);
+    if (!r.ok && r.error.code === 'overlap') {
+      expect(r.error.conflicts.map((c) => c.id)).toEqual(['m', 'a', 'b', 'z']);
+    }
+  });
+  it('does not depend on attempt order', () => {
+    const a = req({ id: 'a', date: D, roomId: 'medium', startSlot: 4, slotCount: 2, name: 'A' });
+    const b = req({ id: 'b', date: D, roomId: 'medium', startSlot: 5, slotCount: 2, name: 'B' });
+    const orders: [Booking, Booking][] = [[a, b], [b, a]];
+    for (const [first, second] of orders) {
+      const one = createBooking([], first, NOW);
+      expect(one.ok).toBe(true);
+      if (!one.ok) return;
+      const two = createBooking(one.value.bookings, second, NOW);
+      expect(two.ok ? 'ok' : two.error.code).toBe('overlap');
+    }
+  });
+  it('is checked after past and before allowance', () => {
+    const clash = req({ id: 'p', date: TODAY, roomId: 'medium', startSlot: 10, slotCount: 1, name: 'Other' });
+    const past = createBooking([clash], req({ id: 'new', date: TODAY, roomId: 'medium', startSlot: 10, slotCount: 1 }), NOW);
+    expect(past.ok ? 'ok' : past.error.code).toBe('in_past');
+    const existing = [
+      at('a', 4, 2),
+      at('b', 10, 2, { name: 'Eleni K.', roomId: 'small' }),
+      at('c', 12, 2, { name: 'Eleni K.', roomId: 'large' }),
+    ];
+    const r = run(existing, { startSlot: 4, slotCount: 1 });
+    expect(r.ok ? 'ok' : r.error.code).toBe('overlap');
+  });
+});
+
+describe('daily allowance', () => {
+  const D = '2026-07-17';
+  const mine = (id: string, startSlot: number, slotCount: number, over: Partial<Booking> = {}): Booking =>
+    req({ id, date: D, roomId: 'small', startSlot, slotCount, name: 'Eleni K.', ...over });
+  const run = (existing: Booking[], over: Partial<BookingRequest>) =>
+    createBooking(existing, req({ id: 'new', date: D, roomId: 'medium', startSlot: 10, name: 'Eleni K.', ...over }), NOW);
+
+  it('refuses a request over the limit with the remaining minutes', () => {
+    const r = run([mine('a', 0, 3)], { slotCount: 2 });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toEqual({ code: 'allowance_exceeded', remainingMinutes: 30 });
+  });
+  it('accepts exactly 2 hours in total', () => {
+    expect(run([mine('a', 0, 3)], { slotCount: 1 }).ok).toBe(true);
+    expect(run([], { slotCount: 4 }).ok).toBe(true);
+  });
+  it('refuses one more Slot after 2 hours, with 0 minutes left', () => {
+    const r = run([mine('a', 0, 4)], { slotCount: 1 });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toEqual({ code: 'allowance_exceeded', remainingMinutes: 0 });
+  });
+  it('sums across Rooms and several Bookings', () => {
+    const existing = [mine('a', 0, 1), mine('b', 2, 1, { roomId: 'large' }), mine('c', 4, 1, { roomId: 'medium' })];
+    const r = run(existing, { slotCount: 2 });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toEqual({ code: 'allowance_exceeded', remainingMinutes: 30 });
+  });
+  it('matches Names case-insensitively and ignoring surrounding spaces', () => {
+    const r = run([mine('a', 0, 4)], { name: '  ELENI k. ', slotCount: 1 });
+    expect(r.ok ? 'ok' : r.error.code).toBe('allowance_exceeded');
+  });
+  it('does not count other Names', () => {
+    expect(run([mine('a', 0, 4, { name: 'Someone Else' })], { slotCount: 4 }).ok).toBe(true);
+  });
+  it('counts per day only', () => {
+    expect(run([mine('a', 0, 4, { date: '2026-07-18' })], { slotCount: 4 }).ok).toBe(true);
+  });
+  it('counts finished Bookings earlier today', () => {
+    const past = mine('a', 0, 4, { date: TODAY });
+    const r = run([past], { date: TODAY, startSlot: 12, slotCount: 1 });
+    expect(r.ok ? 'ok' : r.error.code).toBe('allowance_exceeded');
+  });
+  it('reports in_past before allowance when both fail', () => {
+    const full = mine('a', 0, 4, { date: TODAY });
+    const r = run([full], { date: TODAY, startSlot: 10, slotCount: 1 });
+    expect(r.ok ? 'ok' : r.error.code).toBe('in_past');
+  });
+  it('never reports negative remaining minutes', () => {
+    const r = run([mine('a', 0, 3), mine('b', 4, 3)], { slotCount: 1 });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toEqual({ code: 'allowance_exceeded', remainingMinutes: 0 });
+  });
+  it('reports overlap before allowance when both fail', () => {
+    const existing = [mine('a', 0, 4, { roomId: 'medium', startSlot: 10 })];
+    const r = run(existing, { startSlot: 11, slotCount: 1 });
+    expect(r.ok ? 'ok' : r.error.code).toBe('overlap');
+  });
+  it('does not mutate the input list', () => {
+    const existing = [mine('a', 0, 4), mine('b', 10, 1, { roomId: 'medium' })];
+    const snapshot = JSON.stringify(existing);
+    run(existing, { startSlot: 10, slotCount: 1 });
+    expect(JSON.stringify(existing)).toBe(snapshot);
   });
 });

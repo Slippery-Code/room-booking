@@ -21,7 +21,9 @@ export type DomainError =
   | { readonly code: 'bad_length' }
   | { readonly code: 'outside_grid' }
   | { readonly code: 'outside_window' }
-  | { readonly code: 'in_past' };
+  | { readonly code: 'in_past' }
+  | { readonly code: 'overlap'; readonly conflicts: readonly Booking[] }
+  | { readonly code: 'allowance_exceeded'; readonly remainingMinutes: number };
 
 export interface CreatedBooking {
   readonly bookings: readonly Booking[];
@@ -30,10 +32,12 @@ export interface CreatedBooking {
 
 const MAX_SLOTS = 4;
 const SLOTS_PER_DAY = 24;
+const DAILY_ALLOWANCE_SLOTS = 4;
+const MINUTES_PER_SLOT = 30;
 
 /**
  * Validates a request and returns a new list with the Booking appended.
- * Check order: name, length, grid, window, past. First failure wins.
+ * Check order: name, length, grid, window, past, overlap, allowance. First failure wins.
  */
 export function createBooking(
   bookings: readonly Booking[],
@@ -55,6 +59,27 @@ export function createBooking(
 
   if (request.date === athensDate(now) && startSlot <= athensSlotIndex(now)) {
     return fail({ code: 'in_past' });
+  }
+
+  const end = startSlot + slotCount;
+  const conflicts = bookings
+    .filter(
+      (b) =>
+        b.roomId === request.roomId &&
+        b.date === request.date &&
+        b.startSlot < end &&
+        startSlot < b.startSlot + b.slotCount,
+    )
+    .sort((a, b) => a.startSlot - b.startSlot || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  if (conflicts.length > 0) return fail({ code: 'overlap', conflicts });
+
+  const key = nameKey(name);
+  const booked = bookings
+    .filter((b) => b.date === request.date && nameKey(b.name) === key)
+    .reduce((sum, b) => sum + b.slotCount, 0);
+  if (booked + slotCount > DAILY_ALLOWANCE_SLOTS) {
+    const remaining = Math.max(0, DAILY_ALLOWANCE_SLOTS - booked);
+    return fail({ code: 'allowance_exceeded', remainingMinutes: remaining * MINUTES_PER_SLOT });
   }
 
   const created: Booking = { ...request, name };
