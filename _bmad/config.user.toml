@@ -10,7 +10,7 @@
 # ─────────────────────────────────────────────────────────────────
 
 [core]
-user_name = "Workshop"
+user_name = "Workshop attendee"
 communication_language = "English"
 
 [modules.bmm]
