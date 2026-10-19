@@ -15,6 +15,8 @@ describe('refusalMessage', () => {
       { code: 'outside_grid' },
       { code: 'outside_window' },
       { code: 'in_past' },
+      { code: 'not_found' },
+      { code: 'not_owner' },
       { code: 'overlap', conflicts: [b(13, 1, 'Ann')] },
       { code: 'allowance_exceeded', remainingMinutes: 30 },
       { code: 'storage_unavailable' },
@@ -29,6 +31,8 @@ describe('refusalMessage', () => {
       [{ code: 'outside_grid' }, /08:00 and 20:00/],
       [{ code: 'outside_window' }, /6 days ahead/],
       [{ code: 'in_past' }, /already started/],
+      [{ code: 'not_found' }, /no longer exists/],
+      [{ code: 'not_owner' }, /person who made/],
       [{ code: 'storage_unavailable' }, /storage/i],
     ];
     for (const [error, pattern] of expected) expect(refusalMessage(error)).toMatch(pattern);

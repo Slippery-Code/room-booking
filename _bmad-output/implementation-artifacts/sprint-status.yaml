@@ -48,9 +48,9 @@ development_status:
   2-4-booking-form-with-clear-refusals: done
   epic-2-retrospective: optional
 
-  epic-3: in-progress
+  epic-3: done
   3-1-own-bookings-list: done
-  3-2-cancel-a-booking: backlog
+  3-2-cancel-a-booking: done
   epic-3-retrospective: optional
 
   epic-4: backlog

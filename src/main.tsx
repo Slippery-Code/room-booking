@@ -8,8 +8,16 @@ const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root element');
 
 function Root() {
-  const { bookings, currentName, book, setName } = useBookings();
-  return <App bookings={bookings} currentName={currentName} book={book} setName={setName} />;
+  const { bookings, currentName, book, cancel, setName } = useBookings();
+  return (
+    <App
+      bookings={bookings}
+      currentName={currentName}
+      book={book}
+      cancel={cancel}
+      setName={setName}
+    />
+  );
 }
 
 createRoot(root).render(

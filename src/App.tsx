@@ -7,6 +7,7 @@ import type { Result } from './domain/result';
 import { ROOMS, type RoomId } from './domain/rooms';
 import { BookingForm } from './BookingForm';
 import { refusalMessage } from './refusalMessage';
+import type { CancelledBooking } from './domain/cancelBooking';
 import type { BookRequest, StorageError } from './storage/useBookings';
 import { athensDate, formatDate, slotLabel, windowDates } from './domain/time';
 
@@ -15,6 +16,7 @@ interface AppProps {
   bookings?: readonly Booking[];
   currentName?: string;
   book?: (request: BookRequest) => Result<CreatedBooking, DomainError | StorageError>;
+  cancel?: (id: string) => Result<CancelledBooking, DomainError | StorageError>;
   setName?: (name: string) => void;
 }
 
@@ -25,6 +27,10 @@ interface FormTarget {
 }
 
 const unavailable = (): Result<CreatedBooking, StorageError> => ({
+  ok: false,
+  error: { code: 'storage_unavailable' },
+});
+const cannotCancel = (): Result<CancelledBooking, StorageError> => ({
   ok: false,
   error: { code: 'storage_unavailable' },
 });
@@ -39,11 +45,13 @@ export function App({
   bookings = NO_BOOKINGS,
   currentName = '',
   book = unavailable,
+  cancel = cannotCancel,
   setName = ignore,
 }: AppProps) {
   const [target, setTarget] = useState<FormTarget | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   const [clock, setClock] = useState(() => new Date());
   const now = nowProp ?? clock;
@@ -89,6 +97,10 @@ export function App({
     );
     closeForm();
   };
+  const cancelOne = (id: string) => {
+    const result = cancel(id);
+    setCancelError(result.ok ? null : refusalMessage(result.error));
+  };
   const targetRoom = target ? ROOMS.find((r) => r.id === target.roomId) : undefined;
 
   return (
@@ -114,16 +126,31 @@ export function App({
       )}
       <section className="my-bookings" aria-label="My Bookings">
         <h2>My Bookings</h2>
+        {cancelError && (
+          <p className="cancel-error" role="alert">
+            {cancelError}
+          </p>
+        )}
         {mine.length === 0 ? (
           <p className="my-bookings-empty">No upcoming bookings.</p>
         ) : (
           <ul className="my-bookings-list">
-            {mine.map((b) => (
-              <li key={b.id}>
-                {ROOMS.find((r) => r.id === b.roomId)?.name ?? b.roomId}, {formatDate(b.date)},{' '}
-                {slotLabel(b.startSlot)}-{slotLabel(b.startSlot + b.slotCount)}
-              </li>
-            ))}
+            {mine.map((b) => {
+              const label = `${ROOMS.find((r) => r.id === b.roomId)?.name ?? b.roomId}, ${formatDate(b.date)}, ${slotLabel(b.startSlot)}-${slotLabel(b.startSlot + b.slotCount)}`;
+              return (
+                <li key={b.id}>
+                  <span className="my-booking-text">{label}</span>
+                  <button
+                    type="button"
+                    className="my-booking-cancel"
+                    aria-label={`Cancel ${label}`}
+                    onClick={() => cancelOne(b.id)}
+                  >
+                    Cancel
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

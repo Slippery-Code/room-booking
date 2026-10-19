@@ -248,8 +248,23 @@ code {
 }
 
 .my-bookings-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   padding: 0.5rem 0.75rem;
   border: 1px solid #ccc;
   border-radius: 3px;
   overflow-wrap: anywhere;
+}
+
+.my-booking-cancel {
+  flex: none;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
+.cancel-error {
+  margin: 0 0 0.5rem;
+  color: #a00;
 }

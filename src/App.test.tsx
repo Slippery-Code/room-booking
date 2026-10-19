@@ -12,8 +12,10 @@ const slotsOf = (room: string) =>
   within(screen.getByRole('region', { name: room })).getAllByRole('listitem');
 
 function Harness() {
-  const { bookings, currentName, book, setName } = useBookings();
-  return <App now={NOW} bookings={bookings} currentName={currentName} book={book} setName={setName} />;
+  const { bookings, currentName, book, cancel, setName } = useBookings();
+  return (
+    <App now={NOW} bookings={bookings} currentName={currentName} book={book} cancel={cancel} setName={setName} />
+  );
 }
 
 const DAY = '2026-10-20';
@@ -258,7 +260,7 @@ describe('My Bookings', () => {
     );
     render(<Harness />);
     const items = mine().getAllByRole('listitem');
-    expect(items.map((i) => i.textContent)).toEqual(['Medium, Tue 20 Oct, 14:00-15:00']);
+    expect(items.map((i) => i.textContent)).toEqual(['Medium, Tue 20 Oct, 14:00-15:00Cancel']);
   });
 
   it('shows the empty state when all Bookings have ended or belong to others', () => {
@@ -269,5 +271,38 @@ describe('My Bookings', () => {
     );
     render(<Harness />);
     expect(mine().getByText('No upcoming bookings.')).toBeDefined();
+  });
+
+  const cancelBtn = () => mine().getByRole('button', { name: /^Cancel Medium/ });
+  const overviewCell = () => screen.getByRole('button', { name: /^Medium, Tue 20 Oct,/ });
+
+  it('cancels: row removed, Slots free in day view, week overview drops', () => {
+    localStorage.setItem('room-booking:name', 'eleni k.');
+    seed({ roomId: 'medium', date: DAY, startSlot: 12, slotCount: 2, name: 'Eleni K.' });
+    render(<Harness />);
+    expect(overviewCell().textContent).toBe('2/24');
+    fireEvent.click(cancelBtn());
+    expect(mine().getByText('No upcoming bookings.')).toBeDefined();
+    expect(overviewCell().textContent).toBe('Empty');
+    fireEvent.change(screen.getByRole('combobox', { name: /day/i }), { target: { value: DAY } });
+    expect(screen.getByRole('button', { name: 'Book Medium 14:00' })).toBeDefined();
+    expect(localStorage.getItem('room-booking:v1')).toContain('"bookings":[]');
+  });
+
+  it('shows the refusal and keeps the row when the Booking is gone from storage', () => {
+    localStorage.setItem('room-booking:name', 'Eleni K.');
+    seed({ roomId: 'medium', date: DAY, startSlot: 12, slotCount: 2, name: 'Eleni K.' });
+    render(<Harness />);
+    localStorage.setItem('room-booking:v1', JSON.stringify({ version: 1, bookings: [] }));
+    fireEvent.click(cancelBtn());
+    expect(screen.getByRole('alert').textContent).toMatch(/no longer exists/);
+    expect(mine().getAllByRole('listitem')).toHaveLength(1);
+  });
+
+  it('offers no edit action', () => {
+    localStorage.setItem('room-booking:name', 'Eleni K.');
+    seed({ roomId: 'medium', date: DAY, startSlot: 12, slotCount: 2, name: 'Eleni K.' });
+    render(<Harness />);
+    expect(mine().queryByRole('button', { name: /edit|change|move/i })).toBeNull();
   });
 });

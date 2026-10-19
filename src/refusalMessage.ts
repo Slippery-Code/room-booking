@@ -17,7 +17,11 @@ export function refusalMessage(error: DomainError | StorageError): string {
     case 'outside_window':
       return 'You can only book from today up to 6 days ahead.';
     case 'in_past':
-      return 'That time has already started. Please pick a later time.';
+      return 'That time has already started, so it can no longer be booked or cancelled.';
+    case 'not_found':
+      return 'That booking no longer exists.';
+    case 'not_owner':
+      return 'Only the person who made this booking can cancel it.';
     case 'overlap': {
       const who = error.conflicts
         .map((b) => `${range(b.startSlot, b.slotCount)} by ${b.name}`)
@@ -29,6 +33,6 @@ export function refusalMessage(error: DomainError | StorageError): string {
         ? `That is over your daily limit of 2 hours. You have ${error.remainingMinutes} minutes left on this day.`
         : 'You have used your daily limit of 2 hours on this day. You have 0 minutes left.';
     case 'storage_unavailable':
-      return 'Could not save the booking on this device. Check that browser storage is enabled.';
+      return 'Could not save the change on this device. Check that browser storage is enabled.';
   }
 }

@@ -136,4 +136,80 @@ describe('useBookings', () => {
     expect(result.current.bookings).toEqual([b]);
     expect(result.current.currentName).toBe('Zed');
   });
+
+  describe('cancel', () => {
+    const mine: Booking = { id: 'm', roomId: 'small', date: '2026-10-20', startSlot: 4, slotCount: 2, name: 'Ann' };
+    const put = (...bs: Booking[]) =>
+      localStorage.setItem(BOOKINGS_KEY, JSON.stringify({ version: 1, bookings: bs }));
+
+    it('removes the Booking, stores and updates state', () => {
+      put(mine);
+      localStorage.setItem(NAME_KEY, ' ANN ');
+      const { result } = renderHook(() => useBookings());
+      let r!: ReturnType<typeof result.current.cancel>;
+      act(() => {
+        r = result.current.cancel('m');
+      });
+      expect(r.ok).toBe(true);
+      expect(result.current.bookings).toEqual([]);
+      expect(stored()).toEqual([]);
+    });
+
+    it.each([
+      ['not_owner', 'Bo', 'm'],
+      ['not_found', 'Ann', 'zzz'],
+    ])('refuses with %s and writes nothing', (code, name, id) => {
+      put(mine);
+      localStorage.setItem(NAME_KEY, name);
+      const { result } = renderHook(() => useBookings());
+      let r!: ReturnType<typeof result.current.cancel>;
+      act(() => {
+        r = result.current.cancel(id);
+      });
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.error.code).toBe(code);
+      expect(stored()).toEqual([mine]);
+      expect(result.current.bookings).toEqual([mine]);
+    });
+
+    it('refuses a finished Booking', () => {
+      const old = { ...mine, date: '2026-10-19', startSlot: 0, slotCount: 1 };
+      put(old);
+      localStorage.setItem(NAME_KEY, 'Ann');
+      const { result } = renderHook(() => useBookings());
+      let r!: ReturnType<typeof result.current.cancel>;
+      act(() => {
+        r = result.current.cancel('m');
+      });
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.error.code).toBe('in_past');
+    });
+
+    it('re-reads storage instead of trusting stale state', () => {
+      put(mine);
+      localStorage.setItem(NAME_KEY, 'Ann');
+      const { result } = renderHook(() => useBookings());
+      const other = { ...mine, id: 'o', startSlot: 10, name: 'Bo' };
+      put(mine, other);
+      act(() => {
+        result.current.cancel('m');
+      });
+      expect(stored()).toEqual([other]);
+    });
+
+    it('returns storage_unavailable and keeps state when the write fails', () => {
+      put(mine);
+      localStorage.setItem(NAME_KEY, 'Ann');
+      const { result } = renderHook(() => useBookings());
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('quota');
+      });
+      let r!: ReturnType<typeof result.current.cancel>;
+      act(() => {
+        r = result.current.cancel('m');
+      });
+      expect(r).toEqual({ ok: false, error: { code: 'storage_unavailable' } });
+      expect(result.current.bookings).toEqual([mine]);
+    });
+  });
 });

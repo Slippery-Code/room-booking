@@ -22,6 +22,8 @@ export type DomainError =
   | { readonly code: 'outside_grid' }
   | { readonly code: 'outside_window' }
   | { readonly code: 'in_past' }
+  | { readonly code: 'not_found' }
+  | { readonly code: 'not_owner' }
   | { readonly code: 'overlap'; readonly conflicts: readonly Booking[] }
   | { readonly code: 'allowance_exceeded'; readonly remainingMinutes: number };
 
