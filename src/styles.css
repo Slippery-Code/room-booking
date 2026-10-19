@@ -26,6 +26,80 @@ code {
   padding: 0.25rem 0.5rem;
 }
 
+.overview {
+  margin-top: 1rem;
+}
+
+.overview h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.overview table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 2px;
+  font-size: 0.7rem;
+}
+
+.overview th {
+  font-weight: 600;
+  padding: 0.25rem 0;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.overview tbody th {
+  text-align: left;
+}
+
+.overview td {
+  padding: 0;
+}
+
+.overview-cell {
+  display: block;
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.25rem 0;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.overview-empty {
+  background: #dff3e1;
+}
+
+.overview-part {
+  background: #fff3c4;
+}
+
+.overview-full {
+  background: #f4b9b2;
+  font-weight: 700;
+}
+
+.overview th.overview-selected {
+  text-decoration: underline;
+}
+
+.overview-cell.overview-selected {
+  border-color: #1a1a1a;
+  outline: 2px solid #1a1a1a;
+  outline-offset: -3px;
+}
+
+@media (min-width: 40rem) {
+  .overview table {
+    font-size: 0.9rem;
+  }
+}
+
 .rooms {
   display: grid;
   gap: 1rem;

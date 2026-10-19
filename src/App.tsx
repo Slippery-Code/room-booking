@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { busyness } from './domain/busyness';
 import { dayGrid } from './domain/dayGrid';
 import type { Booking } from './domain/booking';
 import { ROOMS } from './domain/rooms';
@@ -9,6 +10,7 @@ interface AppProps {
   bookings?: readonly Booking[];
 }
 
+const SLOTS_PER_DAY = 24;
 const CLOCK_TICK_MS = 30_000;
 const NO_BOOKINGS: readonly Booking[] = [];
 
@@ -25,6 +27,7 @@ export function App({ now: nowProp, bookings = NO_BOOKINGS }: AppProps) {
   // The window moves at midnight; fall back to today if the pick left it.
   const selected = dates.includes(picked) ? picked : (dates[0] ?? picked);
   const grid = dayGrid(bookings, selected, now);
+  const busynessByDate = new Map(dates.map((d) => [d, busyness(bookings, d)]));
 
   return (
     <main className="app">
@@ -39,6 +42,52 @@ export function App({ now: nowProp, bookings = NO_BOOKINGS }: AppProps) {
           ))}
         </select>
       </label>
+      <section className="overview" aria-label="Week overview">
+        <h2>Week overview</h2>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Room</th>
+              {dates.map((d) => (
+                <th
+                  key={d}
+                  scope="col"
+                  className={d === selected ? 'overview-selected' : undefined}
+                >
+                  {formatDate(d)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {ROOMS.map((room) => (
+              <tr key={room.id}>
+                <th scope="row">{room.name}</th>
+                {dates.map((d) => {
+                  const booked =
+                    busynessByDate.get(d)?.find((r) => r.roomId === room.id)?.bookedSlots ?? 0;
+                  const level = booked === 0 ? 'empty' : booked === SLOTS_PER_DAY ? 'full' : 'part';
+                  const text =
+                    level === 'empty' ? 'Empty' : level === 'full' ? 'Full' : `${booked}/${SLOTS_PER_DAY}`;
+                  return (
+                    <td key={d}>
+                      <button
+                        type="button"
+                        className={`overview-cell overview-${level}${d === selected ? ' overview-selected' : ''}`}
+                        aria-label={`${room.name}, ${formatDate(d)}, ${text}`}
+                        aria-pressed={d === selected}
+                        onClick={() => setSelected(d)}
+                      >
+                        {text}
+                      </button>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
       <div className="rooms">
         {ROOMS.map((room) => {
           const day = grid.find((g) => g.roomId === room.id);

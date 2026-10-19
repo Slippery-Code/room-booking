@@ -69,6 +69,39 @@ describe('App', () => {
     expect(large[8]?.textContent).toContain('Free');
   });
 
+  describe('week overview', () => {
+    const fixtures: Booking[] = [
+      { id: '1', roomId: 'small', date: '2026-10-19', startSlot: 2, slotCount: 2, name: 'Ann' },
+      { id: '2', roomId: 'small', date: '2026-10-19', startSlot: 4, slotCount: 3, name: 'Bo' },
+      ...[0, 4, 8, 12, 16, 20].map((s, i): Booking => ({
+        id: `f${i}`, roomId: 'large', date: '2026-10-21', startSlot: s, slotCount: 4, name: 'Cy',
+      })),
+    ];
+    const overview = () => within(screen.getByRole('region', { name: 'Week overview' }));
+
+    it('shows 3 Rooms x 7 days as 21 buttons with counts, Empty and Full', () => {
+      render(<App now={NOW} bookings={fixtures} />);
+      expect(overview().getAllByRole('button')).toHaveLength(21);
+      expect(overview().getByRole('button', { name: 'Small, Mon 19 Oct, 5/24' }).textContent).toBe('5/24');
+      expect(overview().getByRole('button', { name: 'Large, Wed 21 Oct, Full' }).textContent).toBe('Full');
+      expect(overview().getByRole('button', { name: 'Medium, Mon 19 Oct, Empty' }).textContent).toBe('Empty');
+      expect(overview().getAllByText('Full')).toHaveLength(1);
+      expect(overview().getAllByText('Empty')).toHaveLength(19);
+    });
+
+    it('selects the day and shows its day view when a cell is clicked', () => {
+      render(<App now={NOW} bookings={fixtures} />);
+      const select = screen.getByRole('combobox', { name: /day/i }) as HTMLSelectElement;
+      const cell = overview().getByRole('button', { name: 'Large, Wed 21 Oct, Full' });
+      expect(cell.getAttribute('aria-pressed')).toBe('false');
+      fireEvent.click(cell);
+      expect(select.value).toBe('2026-10-21');
+      expect(cell.getAttribute('aria-pressed')).toBe('true');
+      for (const li of slotsOf('Large')) expect(li.textContent).toContain('Booked: Cy');
+      for (const li of slotsOf('Small')) expect(li.textContent).toContain('Free');
+    });
+  });
+
   it('follows the clock when open without a fixed time', () => {
     vi.useFakeTimers({ now: NOW });
     render(<App />);
