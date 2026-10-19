@@ -41,11 +41,11 @@ development_status:
   1-3-week-overview: done
   epic-1-retrospective: optional
 
-  epic-2: in-progress
+  epic-2: done
   2-1-booking-validity-rules-and-name-matching: done
   2-2-no-double-bookings-and-daily-allowance: done
   2-3-persist-bookings-and-the-remembered-name: done
-  2-4-booking-form-with-clear-refusals: backlog
+  2-4-booking-form-with-clear-refusals: done
   epic-2-retrospective: optional
 
   epic-3: backlog

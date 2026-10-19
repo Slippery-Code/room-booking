@@ -1,7 +1,8 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { act } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
+import { useBookings } from './storage/useBookings';
 import type { Booking } from './domain/booking';
 
 // 10:10 Athens (EEST, UTC+3) on Mon 19 Oct 2026.
@@ -9,6 +10,125 @@ const NOW = new Date('2026-10-19T07:10:00Z');
 
 const slotsOf = (room: string) =>
   within(screen.getByRole('region', { name: room })).getAllByRole('listitem');
+
+function Harness() {
+  const { bookings, currentName, book, setName } = useBookings();
+  return <App now={NOW} bookings={bookings} currentName={currentName} book={book} setName={setName} />;
+}
+
+const DAY = '2026-10-20';
+const seed = (...bs: Omit<Booking, 'id'>[]) =>
+  localStorage.setItem(
+    'room-booking:v1',
+    JSON.stringify({ version: 1, bookings: bs.map((b, i) => ({ ...b, id: `s${i}` })) }),
+  );
+const open = (room: string, time: string) => {
+  fireEvent.change(screen.getByRole('combobox', { name: /day/i }), { target: { value: DAY } });
+  fireEvent.click(screen.getByRole('button', { name: `Book ${room} ${time}` }));
+};
+const form = () => within(screen.getByRole('form', { name: 'Book a room' }));
+const confirm = () => fireEvent.click(form().getByRole('button', { name: 'Confirm booking' }));
+
+describe('booking form', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.useFakeTimers({ now: NOW });
+  });
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
+
+  it('states that Bookings are stored only on this device', () => {
+    render(<Harness />);
+    expect(screen.getByText(/stored only on this device/i)).toBeDefined();
+  });
+
+  it('does not offer booked or past Slots as buttons', () => {
+    seed({ roomId: 'small', date: '2026-10-19', startSlot: 6, slotCount: 1, name: 'Ann' });
+    render(<Harness />);
+    expect(screen.queryByRole('button', { name: 'Book Small 08:00' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Book Small 11:00' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Book Small 10:30' })).toBeDefined();
+  });
+
+  it('opens with Room, day, start, 30 min default and prefilled Name', () => {
+    localStorage.setItem('room-booking:name', 'Ann');
+    render(<Harness />);
+    open('Medium', '14:00');
+    expect(form().getByText('Medium')).toBeDefined();
+    expect(form().getByText('Tue 20 Oct')).toBeDefined();
+    expect(form().getByText('14:00')).toBeDefined();
+    expect((form().getByLabelText('End') as HTMLSelectElement).value).toBe('1');
+    expect(form().getAllByRole('option').map((o) => o.textContent)).toEqual([
+      '14:30', '15:00', '15:30', '16:00',
+    ]);
+    expect((form().getByLabelText('Name') as HTMLInputElement).value).toBe('Ann');
+  });
+
+  it('limits the end time to the 20:00 close', () => {
+    render(<Harness />);
+    open('Small', '19:00');
+    expect(form().getAllByRole('option').map((o) => o.textContent)).toEqual(['19:30', '20:00']);
+  });
+
+  it('books, confirms, remembers the Name and closes the form', () => {
+    render(<Harness />);
+    open('Large', '14:00');
+    fireEvent.change(form().getByLabelText('End'), { target: { value: '2' } });
+    fireEvent.change(form().getByLabelText('Name'), { target: { value: ' Ann ' } });
+    confirm();
+    expect(screen.queryByRole('form', { name: 'Book a room' })).toBeNull();
+    expect(screen.getByRole('status').textContent).toBe('Booked Large, Tue 20 Oct, 14:00-15:00');
+    expect(slotsOf('Large')[12]?.textContent).toContain('Booked: Ann');
+    expect(slotsOf('Large')[13]?.textContent).toContain('Booked: Ann');
+    expect(localStorage.getItem('room-booking:name')).toBe('Ann');
+  });
+
+  it('refuses an overlap naming the conflict, and stays open (UJ-1 extension)', () => {
+    seed({ roomId: 'small', date: DAY, startSlot: 13, slotCount: 1, name: 'Bo' });
+    render(<Harness />);
+    open('Small', '14:00');
+    fireEvent.change(form().getByLabelText('End'), { target: { value: '2' } });
+    fireEvent.change(form().getByLabelText('Name'), { target: { value: 'Ann' } });
+    confirm();
+    expect(form().getByRole('alert').textContent).toContain('14:30-15:00 by Bo');
+    fireEvent.change(form().getByLabelText('End'), { target: { value: '1' } });
+    confirm();
+    expect(screen.getByRole('status').textContent).toContain('14:00-14:30');
+  });
+
+  it('refuses when the Daily Allowance is exceeded, stating minutes remaining', () => {
+    seed({ roomId: 'medium', date: DAY, startSlot: 0, slotCount: 3, name: 'ann' });
+    render(<Harness />);
+    open('Small', '14:00');
+    fireEvent.change(form().getByLabelText('End'), { target: { value: '2' } });
+    fireEvent.change(form().getByLabelText('Name'), { target: { value: 'Ann' } });
+    confirm();
+    expect(form().getByRole('alert').textContent).toContain('30 minutes left');
+  });
+
+  it('refuses a blank Name and keeps the form open', () => {
+    render(<Harness />);
+    open('Small', '14:00');
+    confirm();
+    expect(form().getByRole('alert').textContent).toMatch(/name/i);
+  });
+
+  it('closes without booking', () => {
+    render(<Harness />);
+    open('Small', '14:00');
+    fireEvent.click(form().getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('form', { name: 'Book a room' })).toBeNull();
+  });
+
+  it('closes the form when another day is selected', () => {
+    render(<Harness />);
+    open('Small', '14:00');
+    fireEvent.change(screen.getByRole('combobox', { name: /day/i }), { target: { value: '2026-10-20' } });
+    expect(screen.queryByRole('form', { name: 'Book a room' })).toBeNull();
+  });
+});
 
 describe('App', () => {
   afterEach(() => {

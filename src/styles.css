@@ -154,3 +154,87 @@ code {
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+.storage-notice {
+  margin: 0.25rem 0 0.75rem;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.slot-book {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0.25rem 0;
+  min-height: 2.5rem;
+  flex: 1;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.booking-confirmation {
+  padding: 0.5rem 0.75rem;
+  background: #dff3e1;
+  border-radius: 3px;
+}
+
+.booking-form {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.booking-form h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.booking-form label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.booking-form select,
+.booking-form input,
+.booking-form button {
+  font: inherit;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.booking-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.75rem;
+  margin: 0;
+}
+
+.booking-facts dt {
+  color: #555;
+}
+
+.booking-facts dd {
+  margin: 0;
+}
+
+.booking-error {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  background: #f4b9b2;
+  border-radius: 3px;
+}
+
+.booking-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.booking-actions button {
+  flex: 1;
+}

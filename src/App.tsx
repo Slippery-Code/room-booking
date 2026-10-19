@@ -1,20 +1,49 @@
 import { useEffect, useState } from 'react';
 import { busyness } from './domain/busyness';
 import { dayGrid } from './domain/dayGrid';
-import type { Booking } from './domain/booking';
-import { ROOMS } from './domain/rooms';
+import type { Booking, CreatedBooking, DomainError } from './domain/booking';
+import type { Result } from './domain/result';
+import { ROOMS, type RoomId } from './domain/rooms';
+import { BookingForm } from './BookingForm';
+import { refusalMessage } from './refusalMessage';
+import type { BookRequest, StorageError } from './storage/useBookings';
 import { athensDate, formatDate, slotLabel, windowDates } from './domain/time';
 
 interface AppProps {
   now?: Date;
   bookings?: readonly Booking[];
+  currentName?: string;
+  book?: (request: BookRequest) => Result<CreatedBooking, DomainError | StorageError>;
+  setName?: (name: string) => void;
 }
+
+interface FormTarget {
+  roomId: RoomId;
+  date: string;
+  startSlot: number;
+}
+
+const unavailable = (): Result<CreatedBooking, StorageError> => ({
+  ok: false,
+  error: { code: 'storage_unavailable' },
+});
+const ignore = (): void => undefined;
 
 const SLOTS_PER_DAY = 24;
 const CLOCK_TICK_MS = 30_000;
 const NO_BOOKINGS: readonly Booking[] = [];
 
-export function App({ now: nowProp, bookings = NO_BOOKINGS }: AppProps) {
+export function App({
+  now: nowProp,
+  bookings = NO_BOOKINGS,
+  currentName = '',
+  book = unavailable,
+  setName = ignore,
+}: AppProps) {
+  const [target, setTarget] = useState<FormTarget | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmation, setConfirmation] = useState<string | null>(null);
+
   const [clock, setClock] = useState(() => new Date());
   const now = nowProp ?? clock;
   useEffect(() => {
@@ -29,12 +58,61 @@ export function App({ now: nowProp, bookings = NO_BOOKINGS }: AppProps) {
   const grid = dayGrid(bookings, selected, now);
   const busynessByDate = new Map(dates.map((d) => [d, busyness(bookings, d)]));
 
+  const openForm = (next: FormTarget) => {
+    setTarget(next);
+    setError(null);
+    setConfirmation(null);
+  };
+  const closeForm = () => {
+    setTarget(null);
+    setError(null);
+  };
+  const selectDay = (date: string) => {
+    setSelected(date);
+    closeForm();
+  };
+  const submit = (name: string, slotCount: number) => {
+    if (!target) return;
+    const result = book({ ...target, slotCount, name });
+    if (!result.ok) {
+      setError(refusalMessage(result.error));
+      return;
+    }
+    const { created } = result.value;
+    setName(created.name);
+    const room = ROOMS.find((r) => r.id === created.roomId);
+    setConfirmation(
+      `Booked ${room?.name ?? created.roomId}, ${formatDate(created.date)}, ` +
+        `${slotLabel(created.startSlot)}-${slotLabel(created.startSlot + created.slotCount)}`,
+    );
+    closeForm();
+  };
+  const targetRoom = target ? ROOMS.find((r) => r.id === target.roomId) : undefined;
+
   return (
     <main className="app">
       <h1>Room Booking</h1>
+      <p className="storage-notice">Bookings are stored only on this device.</p>
+      {confirmation && (
+        <p className="booking-confirmation" role="status">
+          {confirmation}
+        </p>
+      )}
+      {target && targetRoom && (
+        <BookingForm
+          key={`${target.roomId}|${target.date}|${target.startSlot}`}
+          roomName={targetRoom.name}
+          dayLabel={formatDate(target.date)}
+          startSlot={target.startSlot}
+          initialName={currentName}
+          error={error}
+          onSubmit={submit}
+          onCancel={closeForm}
+        />
+      )}
       <label className="day-picker">
         Day{' '}
-        <select value={selected} onChange={(e) => setSelected(e.target.value)}>
+        <select value={selected} onChange={(e) => selectDay(e.target.value)}>
           {dates.map((d) => (
             <option key={d} value={d}>
               {formatDate(d)}
@@ -76,7 +154,7 @@ export function App({ now: nowProp, bookings = NO_BOOKINGS }: AppProps) {
                         className={`overview-cell overview-${level}${d === selected ? ' overview-selected' : ''}`}
                         aria-label={`${room.name}, ${formatDate(d)}, ${text}`}
                         aria-pressed={d === selected}
-                        onClick={() => setSelected(d)}
+                        onClick={() => selectDay(d)}
                       >
                         {text}
                       </button>
@@ -109,7 +187,20 @@ export function App({ now: nowProp, bookings = NO_BOOKINGS }: AppProps) {
                   return (
                     <li key={cell.slot} className={`slot slot-${state}`}>
                       <span className="slot-time">{slotLabel(cell.slot)}</span>{' '}
-                      <span className="slot-state">{text}</span>
+                      {state === 'free' ? (
+                        <button
+                          type="button"
+                          className="slot-state slot-book"
+                          aria-label={`Book ${room.name} ${slotLabel(cell.slot)}`}
+                          onClick={() =>
+                            openForm({ roomId: room.id, date: selected, startSlot: cell.slot })
+                          }
+                        >
+                          {text}
+                        </button>
+                      ) : (
+                        <span className="slot-state">{text}</span>
+                      )}
                     </li>
                   );
                 })}
