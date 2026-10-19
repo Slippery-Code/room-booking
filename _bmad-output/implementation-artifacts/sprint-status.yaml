@@ -53,7 +53,7 @@ development_status:
   3-2-cancel-a-booking: done
   epic-3-retrospective: optional
 
-  epic-4: in-progress
+  epic-4: done
   4-1-mobile-first-layout-and-desktop-enhancement: done
-  4-2-architecture-and-offline-guard-tests: backlog
+  4-2-architecture-and-offline-guard-tests: done
   epic-4-retrospective: optional
