@@ -23,4 +23,4 @@ Stuck, or seeing a ✗? See [workshop/SETUP.md](workshop/SETUP.md).
 
 ## On the day
 
-Lab handouts are in [workshop/labs](workshop/labs/).
+Lab handouts are in [workshop/labs](workshop/labs/). A one-page [cheat sheet](workshop/CHEATSHEET.md) is next to them.

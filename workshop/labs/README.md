@@ -7,6 +7,8 @@
 | 2 | Spec → code: the implementation loop | [lab-2.md](lab-2.md) |
 | 3 | Code → production: ship, then change a live rule | [lab-3.md](lab-3.md) |
 
+One-page reference: [../CHEATSHEET.md](../CHEATSHEET.md)
+
 ## Running agent commands
 
 The labs use skills and slash commands. How you call them depends on your agent:

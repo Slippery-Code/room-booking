@@ -77,11 +77,19 @@ Review what it adds before you commit it:
 - Does it apply to future changes, or does it only describe this one?
 - Could an agent follow it without asking you anything?
 
+## Finished early? (optional)
+
+Not required, and the comparison below always comes first: when the room is called back, stop where you are. Do them in this order.
+
+1. **Add a real CI gate.** Add something you would keep in a real project to CI: accessibility tests or a Lighthouse check are good candidates. Then try to push a change that fails it. `AGENTS.md` normally tells the agent not to touch `.github/workflows/`; this task asks for it, so say so. Don't lower a threshold or remove the check to get green.
+2. **Spot the spec drift.** Compare the OpenSpec spec, the PRD and the code. Which of them now say different things? Which one is the source of truth?
+3. **Roll it back.** Revert the change with `git revert`, push, and watch CI redeploy the old rule.
+
 ## 4. Compare (5 min, whole room)
 
 - Each pair reads out what they added to AGENTS.md.
 - How many existing tests broke, and how many of them really described the old rule?
-- Lab 1 took an hour of planning for a new product. This change took minutes. When is each one right?
+- Lab 1 planned a whole new product. This change touched one rule. How much process does each one deserve, and when is each one right?
 
 ## Troubleshooting
 

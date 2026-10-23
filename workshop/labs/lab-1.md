@@ -1,6 +1,6 @@
 # Lab 1: idea → spec
 
-**Time:** 65 minutes · **Goal:** turn [docs/idea.md](../../docs/idea.md) into a plan you could hand to a team: a PRD, an architecture, and epics with stories.
+**Time:** 60 minutes · **Goal:** turn [docs/idea.md](../../docs/idea.md) into a plan you could hand to a team: a PRD, an architecture, and epics with stories.
 
 You'll use BMAD, a framework that gives your agent defined roles (analyst, product manager, architect, developer) and a document for each phase. See [README](README.md#running-agent-commands) for how to run its commands in your agent.
 
@@ -29,19 +29,19 @@ Replace `<your-tool>` with `claude-code`, `codex`, `cursor`, `github-copilot`, `
 
 Then commit, and restart your agent so it picks up the new skills.
 
-### 1. Ask for directions (3 min)
+### 1. Ask for directions (2 min)
 
 Run `bmad-help` and ask:
 
 > I have a product idea in idea.md for a new app. What should I do first?
 
-### 2. Product requirements (20 min)
+### 2. Product requirements (18 min)
 
 Run `bmad-prd`, and point it at the idea file (`docs/idea.md`, or `idea.md` on option B). When it offers a working mode, pick **Fast path**.
 
 The agent will ask questions the idea doesn't answer. **You are the product owner.** The community manager isn't in the room, so decide, and keep your answers short. When it offers to fill gaps with assumptions, read them before accepting.
 
-### 3. Architecture (15 min)
+### 3. Architecture (13 min)
 
 Run `bmad-architecture`.
 
