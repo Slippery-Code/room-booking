@@ -36,7 +36,7 @@ OpenSpec is a lighter way to do spec-driven change: a short proposal and a spec 
 
 | Step | Command (Claude Code) | What you do |
 |---|---|---|
-| 1 | `openspec init` (in the terminal) | Choose your agent |
+| 1 | `openspec init` (in the terminal) | Choose your agent, then **restart it** so it picks up the new commands |
 | 2 | `/opsx:explore` | Ask the agent where the limit lives: in the PRD, in the code, in the tests. **No changes yet** |
 | 3 | `/opsx:propose <short-name>` | Review the proposal, the spec delta and the tasks. See below |
 | 4 | `/opsx:apply` | **Tests before the change.** See below |
